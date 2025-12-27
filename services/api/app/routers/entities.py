@@ -1,13 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, Header
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
 from typing import Optional
 from uuid import UUID
 
+from fastapi import APIRouter, Depends, Header, HTTPException
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.database import get_db
-from app.models import Entity, SavedItem, User
-from app.schemas.api import EntityResponse, EntityList
 from app.middleware.auth import get_current_user, get_optional_user
+from app.models import Entity, SavedItem, User
+from app.schemas.api import EntityList, EntityResponse
 
 router = APIRouter()
 
@@ -18,11 +19,13 @@ async def list_entities(
     offset: int = 0,
     x_product_id: str = Header(default="gov", alias="X-Product-ID"),
     db: AsyncSession = Depends(get_db),
-    user: Optional[User] = Depends(get_optional_user)
+    user: Optional[User] = Depends(get_optional_user),
 ):
     # Count total
-    count_query = select(func.count()).select_from(Entity).where(
-        Entity.product_id == x_product_id
+    count_query = (
+        select(func.count())
+        .select_from(Entity)
+        .where(Entity.product_id == x_product_id)
     )
     total = await db.scalar(count_query)
 
@@ -41,15 +44,12 @@ async def list_entities(
         data=[EntityResponse.model_validate(e) for e in entities],
         total=total or 0,
         limit=limit,
-        offset=offset
+        offset=offset,
     )
 
 
 @router.get("/{entity_id}", response_model=EntityResponse)
-async def get_entity(
-    entity_id: UUID,
-    db: AsyncSession = Depends(get_db)
-):
+async def get_entity(entity_id: UUID, db: AsyncSession = Depends(get_db)):
     query = select(Entity).where(Entity.id == entity_id)
     result = await db.execute(query)
     entity = result.scalar_one_or_none()
@@ -65,7 +65,7 @@ async def save_entity(
     entity_id: UUID,
     notes: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user)
+    user: User = Depends(get_current_user),
 ):
     # Check entity exists
     entity = await db.get(Entity, entity_id)
@@ -74,8 +74,7 @@ async def save_entity(
 
     # Check if already saved
     query = select(SavedItem).where(
-        SavedItem.user_id == user.id,
-        SavedItem.entity_id == entity_id
+        SavedItem.user_id == user.id, SavedItem.entity_id == entity_id
     )
     result = await db.execute(query)
     existing = result.scalar_one_or_none()
@@ -88,11 +87,7 @@ async def save_entity(
         return {"success": True, "message": "Already saved"}
 
     # Save item
-    saved_item = SavedItem(
-        user_id=user.id,
-        entity_id=entity_id,
-        notes=notes
-    )
+    saved_item = SavedItem(user_id=user.id, entity_id=entity_id, notes=notes)
     db.add(saved_item)
     await db.commit()
 
@@ -103,11 +98,10 @@ async def save_entity(
 async def unsave_entity(
     entity_id: UUID,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user)
+    user: User = Depends(get_current_user),
 ):
     query = select(SavedItem).where(
-        SavedItem.user_id == user.id,
-        SavedItem.entity_id == entity_id
+        SavedItem.user_id == user.id, SavedItem.entity_id == entity_id
     )
     result = await db.execute(query)
     saved_item = result.scalar_one_or_none()
@@ -125,17 +119,14 @@ async def list_saved_entities(
     offset: int = 0,
     x_product_id: str = Header(default="gov", alias="X-Product-ID"),
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user)
+    user: User = Depends(get_current_user),
 ):
     # Count total
     count_query = (
         select(func.count())
         .select_from(SavedItem)
         .join(Entity)
-        .where(
-            SavedItem.user_id == user.id,
-            Entity.product_id == x_product_id
-        )
+        .where(SavedItem.user_id == user.id, Entity.product_id == x_product_id)
     )
     total = await db.scalar(count_query)
 
@@ -143,10 +134,7 @@ async def list_saved_entities(
     query = (
         select(Entity)
         .join(SavedItem)
-        .where(
-            SavedItem.user_id == user.id,
-            Entity.product_id == x_product_id
-        )
+        .where(SavedItem.user_id == user.id, Entity.product_id == x_product_id)
         .order_by(SavedItem.created_at.desc())
         .offset(offset)
         .limit(limit)
@@ -158,5 +146,5 @@ async def list_saved_entities(
         data=[EntityResponse.model_validate(e) for e in entities],
         total=total or 0,
         limit=limit,
-        offset=offset
+        offset=offset,
     )

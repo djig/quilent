@@ -1,12 +1,14 @@
-from sqlalchemy import Column, String, Text, DateTime, JSON
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import JSON, Column, DateTime, String, Text
+
 from app.models.base import BaseModel
 
 
 class Entity(BaseModel):
     __tablename__ = "entities"
 
-    product_id = Column(String(50), nullable=False, index=True)  # 'gov', 'sec', 'academic'
+    product_id = Column(
+        String(50), nullable=False, index=True
+    )  # 'gov', 'sec', 'academic'
     source_id = Column(String(255), nullable=False)  # External ID from source
     entity_type = Column(String(50), nullable=False)  # 'contract', 'filing', 'paper'
     title = Column(Text, nullable=False)
@@ -17,6 +19,4 @@ class Entity(BaseModel):
     summary = Column(Text)  # AI-generated summary
 
     # Composite unique constraint
-    __table_args__ = (
-        {"schema": None},
-    )
+    __table_args__ = ({"schema": None},)

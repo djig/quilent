@@ -1,12 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, Header
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+import logging
+
 import stripe
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import get_db
-from app.models import User, Subscription
 from app.middleware.auth import get_current_user
+from app.models import Subscription, User
+
+logger = logging.getLogger(__name__)
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
@@ -20,7 +24,7 @@ PRICE_IDS = {
     "sec": {
         "pro": "price_sec_pro",  # $15/month
         "premium": "price_sec_premium",  # $49/month
-    }
+    },
 }
 
 
@@ -29,7 +33,7 @@ async def create_checkout_session(
     tier: str,
     x_product_id: str = Header(default="gov", alias="X-Product-ID"),
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user)
+    user: User = Depends(get_current_user),
 ):
     price_id = PRICE_IDS.get(x_product_id, {}).get(tier)
     if not price_id:
@@ -47,24 +51,26 @@ async def create_checkout_session(
                 "user_id": str(user.id),
                 "product_id": x_product_id,
                 "tier": tier,
-            }
+            },
         )
 
         return {"url": session.url}
     except stripe.error.StripeError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        logger.error(f"Stripe checkout error for user {user.id}: {e}")
+        raise HTTPException(
+            status_code=400, detail="Payment processing failed. Please try again."
+        ) from None
 
 
 @router.post("/create-portal-session")
 async def create_portal_session(
     x_product_id: str = Header(default="gov", alias="X-Product-ID"),
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user)
+    user: User = Depends(get_current_user),
 ):
     # Get user's subscription
     query = select(Subscription).where(
-        Subscription.user_id == user.id,
-        Subscription.product_id == x_product_id
+        Subscription.user_id == user.id, Subscription.product_id == x_product_id
     )
     result = await db.execute(query)
     subscription = result.scalar_one_or_none()
@@ -79,14 +85,14 @@ async def create_portal_session(
         )
         return {"url": session.url}
     except stripe.error.StripeError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        logger.error(f"Stripe portal error for user {user.id}: {e}")
+        raise HTTPException(
+            status_code=400, detail="Unable to access billing portal. Please try again."
+        ) from None
 
 
 @router.post("/webhook")
-async def stripe_webhook(
-    request: Request,
-    db: AsyncSession = Depends(get_db)
-):
+async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature")
 
@@ -95,9 +101,9 @@ async def stripe_webhook(
             payload, sig_header, settings.STRIPE_WEBHOOK_SECRET
         )
     except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid payload")
+        raise HTTPException(status_code=400, detail="Invalid payload") from None
     except stripe.error.SignatureVerificationError:
-        raise HTTPException(status_code=400, detail="Invalid signature")
+        raise HTTPException(status_code=400, detail="Invalid signature") from None
 
     # Handle events
     if event["type"] == "checkout.session.completed":
@@ -125,8 +131,7 @@ async def handle_checkout_completed(db: AsyncSession, session: dict):
 
     # Check for existing subscription
     query = select(Subscription).where(
-        Subscription.user_id == user_id,
-        Subscription.product_id == product_id
+        Subscription.user_id == user_id, Subscription.product_id == product_id
     )
     result = await db.execute(query)
     subscription = result.scalar_one_or_none()
@@ -145,7 +150,7 @@ async def handle_checkout_completed(db: AsyncSession, session: dict):
             tier=tier,
             status="active",
             stripe_customer_id=customer_id,
-            stripe_subscription_id=subscription_id
+            stripe_subscription_id=subscription_id,
         )
         db.add(subscription)
 
@@ -164,6 +169,7 @@ async def handle_subscription_updated(db: AsyncSession, stripe_sub: dict):
         subscription.status = stripe_sub["status"]
         if stripe_sub.get("current_period_end"):
             from datetime import datetime
+
             subscription.current_period_end = datetime.fromtimestamp(
                 stripe_sub["current_period_end"]
             )
@@ -188,26 +194,21 @@ async def handle_subscription_deleted(db: AsyncSession, stripe_sub: dict):
 async def get_subscription(
     x_product_id: str = Header(default="gov", alias="X-Product-ID"),
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user)
+    user: User = Depends(get_current_user),
 ):
     """Get user's current subscription status"""
     query = select(Subscription).where(
-        Subscription.user_id == user.id,
-        Subscription.product_id == x_product_id
+        Subscription.user_id == user.id, Subscription.product_id == x_product_id
     )
     result = await db.execute(query)
     subscription = result.scalar_one_or_none()
 
     if not subscription:
-        return {
-            "tier": "free",
-            "status": "active",
-            "product_id": x_product_id
-        }
+        return {"tier": "free", "status": "active", "product_id": x_product_id}
 
     return {
         "tier": subscription.tier,
         "status": subscription.status,
         "product_id": subscription.product_id,
-        "current_period_end": subscription.current_period_end
+        "current_period_end": subscription.current_period_end,
     }

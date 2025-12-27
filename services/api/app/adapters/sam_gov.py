@@ -1,7 +1,8 @@
-import httpx
 from datetime import datetime, timedelta
-from typing import List, Optional
-from app.adapters.base import DataAdapter, EntityData, SearchQuery, RawData
+
+import httpx
+
+from app.adapters.base import DataAdapter, EntityData, RawData, SearchQuery
 from app.config import settings
 
 
@@ -21,7 +22,7 @@ class SamGovAdapter(DataAdapter):
     def product_id(self) -> str:
         return "gov"
 
-    async def search(self, query: SearchQuery) -> List[EntityData]:
+    async def search(self, query: SearchQuery) -> list[EntityData]:
         params = {
             "api_key": self.api_key,
             "limit": str(query.limit),
@@ -53,7 +54,7 @@ class SamGovAdapter(DataAdapter):
             for opp in opportunities
         ]
 
-    async def get_recent(self, since: datetime) -> List[EntityData]:
+    async def get_recent(self, since: datetime) -> list[EntityData]:
         params = {
             "api_key": self.api_key,
             "limit": "1000",
@@ -99,16 +100,24 @@ class SamGovAdapter(DataAdapter):
                 "sub_agency": data.get("subtierAgency"),
                 "office": data.get("officeAddress", {}).get("city"),
                 "naics_code": data.get("naicsCode"),
-                "naics_description": (data.get("naicsCodes") or [{}])[0].get("description") if data.get("naicsCodes") else None,
+                "naics_description": (
+                    (data.get("naicsCodes") or [{}])[0].get("description")
+                    if data.get("naicsCodes")
+                    else None
+                ),
                 "set_aside": data.get("typeOfSetAside"),
                 "set_aside_description": data.get("typeOfSetAsideDescription"),
                 "deadline": data.get("responseDeadLine"),
                 "contract_type": data.get("type"),
                 "description": data.get("description"),
                 "place_of_performance": place,
-                "point_of_contact": data.get("pointOfContact", [{}])[0] if data.get("pointOfContact") else None,
+                "point_of_contact": (
+                    data.get("pointOfContact", [{}])[0]
+                    if data.get("pointOfContact")
+                    else None
+                ),
                 "resource_links": data.get("resourceLinks"),
-            }
+            },
         )
 
     async def health_check(self) -> bool:

@@ -1,10 +1,10 @@
+from datetime import datetime
+from uuid import uuid4
+
 import pytest
+from app.models import Entity
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
-from uuid import uuid4
-from datetime import datetime
-
-from app.models import Entity, User
 
 
 @pytest.fixture
@@ -22,8 +22,8 @@ async def test_entity(db_session: AsyncSession) -> Entity:
             "naics_code": "541511",
             "set_aside": "SBA",
             "deadline": "2025-02-01",
-            "description": "Test contract for software development services."
-        }
+            "description": "Test contract for software development services.",
+        },
     )
     db_session.add(entity)
     await db_session.commit()
@@ -34,10 +34,7 @@ async def test_entity(db_session: AsyncSession) -> Entity:
 @pytest.mark.asyncio
 async def test_list_entities(client: AsyncClient, test_entity: Entity):
     """Test listing entities."""
-    response = await client.get(
-        "/api/entities/",
-        headers={"X-Product-ID": "gov"}
-    )
+    response = await client.get("/api/entities/", headers={"X-Product-ID": "gov"})
     assert response.status_code == 200
     data = response.json()
     assert "data" in data
@@ -67,8 +64,7 @@ async def test_get_entity_not_found(client: AsyncClient):
 async def test_save_entity(auth_client: AsyncClient, test_entity: Entity):
     """Test saving an entity."""
     response = await auth_client.post(
-        f"/api/entities/{test_entity.id}/save",
-        params={"notes": "Interesting contract"}
+        f"/api/entities/{test_entity.id}/save", params={"notes": "Interesting contract"}
     )
     assert response.status_code == 200
     assert response.json()["success"] is True

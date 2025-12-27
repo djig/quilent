@@ -1,7 +1,7 @@
-from pydantic_settings import BaseSettings
-from pydantic import field_validator
-from typing import List
 from functools import lru_cache
+
+from pydantic import field_validator
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379"
 
     # JWT
-    JWT_SECRET_KEY: str = "your-super-secret-key-change-in-production"
+    JWT_SECRET_KEY: str = "your-super-secret-key-change-in-production"  # noqa: S105
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
@@ -46,7 +46,7 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = "http://localhost:3000"
 
     # CORS - can be set via CORS_ORIGINS env var as comma-separated list
-    CORS_ORIGINS: List[str] = [
+    CORS_ORIGINS: list[str] = [
         "http://localhost:3000",
         "http://localhost:3001",
         "http://localhost:3002",
@@ -54,7 +54,7 @@ class Settings(BaseSettings):
         "http://localhost:3004",
         "http://localhost:3005",
         "https://govbids.quilent.ai",
-        "https://quilent.ai"
+        "https://quilent.ai",
     ]
 
     @field_validator("CORS_ORIGINS", mode="before")
@@ -69,7 +69,7 @@ class Settings(BaseSettings):
         env_file = ".env"
 
 
-@lru_cache()
+@lru_cache
 def get_settings() -> Settings:
     return Settings()
 

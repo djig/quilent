@@ -1,12 +1,13 @@
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional
 from datetime import datetime
+from typing import Any, Optional
+
 from pydantic import BaseModel
 
 
 class RawData(BaseModel):
     source_id: str
-    raw: Dict[str, Any]
+    raw: dict[str, Any]
 
 
 class EntityData(BaseModel):
@@ -15,12 +16,12 @@ class EntityData(BaseModel):
     title: str
     source_url: str
     published_at: datetime
-    data: Dict[str, Any]
+    data: dict[str, Any]
 
 
 class SearchQuery(BaseModel):
     keywords: Optional[str] = None
-    filters: Dict[str, Any] = {}
+    filters: dict[str, Any] = {}
     limit: int = 100
     offset: int = 0
 
@@ -39,11 +40,11 @@ class DataAdapter(ABC):
         pass
 
     @abstractmethod
-    async def search(self, query: SearchQuery) -> List[EntityData]:
+    async def search(self, query: SearchQuery) -> list[EntityData]:
         pass
 
     @abstractmethod
-    async def get_recent(self, since: datetime) -> List[EntityData]:
+    async def get_recent(self, since: datetime) -> list[EntityData]:
         pass
 
     @abstractmethod

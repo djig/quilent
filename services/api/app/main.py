@@ -1,10 +1,14 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 from app.config import settings
 from app.database import init_db
-from app.routers import entities, search, alerts, ai, billing, auth
+from app.middleware.rate_limit import limiter
+from app.routers import ai, alerts, auth, billing, entities, search
 
 
 @asynccontextmanager
@@ -20,8 +24,12 @@ app = FastAPI(
     title="Quilent API",
     description="AI Agent Platform for Data Intelligence",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
+
+# Rate limiting
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # CORS
 app.add_middleware(
@@ -50,4 +58,5 @@ app.include_router(billing.router, prefix="/api/billing", tags=["billing"])
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)  # noqa: S104

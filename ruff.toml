@@ -1,0 +1,26 @@
+# Ruff configuration for Quilent
+
+[lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # Pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "S",      # flake8-bandit (security)
+    "C4",     # flake8-comprehensions
+    "UP",     # pyupgrade
+]
+ignore = [
+    "E501",   # line too long (handled by black)
+    "S101",   # use of assert
+    "B008",   # function call in default argument
+]
+
+[lint.per-file-ignores]
+"tests/*" = ["S101", "S105", "S106"]  # Allow assert and hardcoded passwords in tests
+"**/conftest.py" = ["S101", "S105", "S106"]
+
+[format]
+quote-style = "double"
+indent-style = "space"

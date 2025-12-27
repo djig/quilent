@@ -1,5 +1,7 @@
+from typing import Any, Optional
+
 from anthropic import Anthropic
-from typing import Optional, Dict, Any
+
 from app.config import settings
 
 client = None
@@ -13,9 +15,7 @@ def get_client():
 
 
 async def generate_summary(
-    content: str,
-    prompt_template: str,
-    max_tokens: int = 500
+    content: str, prompt_template: str, max_tokens: int = 500
 ) -> str:
     """Generate AI summary using Claude"""
     ai_client = get_client()
@@ -28,18 +28,14 @@ async def generate_summary(
         model="claude-3-haiku-20240307",  # Fast & cheap for summaries
         max_tokens=max_tokens,
         temperature=0.3,
-        messages=[
-            {"role": "user", "content": prompt}
-        ]
+        messages=[{"role": "user", "content": prompt}],
     )
 
     return message.content[0].text
 
 
 async def analyze_contract(
-    content: str,
-    prompt_template: str,
-    user_profile: Optional[Dict[str, Any]] = None
+    content: str, prompt_template: str, user_profile: Optional[dict[str, Any]] = None
 ) -> str:
     """Deep analysis using Claude Sonnet"""
     ai_client = get_client()
@@ -54,9 +50,7 @@ async def analyze_contract(
         model="claude-3-5-sonnet-20241022",  # Better for analysis
         max_tokens=1000,
         temperature=0.3,
-        messages=[
-            {"role": "user", "content": prompt}
-        ]
+        messages=[{"role": "user", "content": prompt}],
     )
 
     return message.content[0].text
@@ -80,9 +74,7 @@ Provide a clear, concise answer based only on the information provided."""
         model="claude-3-haiku-20240307",
         max_tokens=500,
         temperature=0.3,
-        messages=[
-            {"role": "user", "content": prompt}
-        ]
+        messages=[{"role": "user", "content": prompt}],
     )
 
     return message.content[0].text
@@ -95,7 +87,6 @@ PROMPTS = {
 Focus on: what the government needs, key requirements, and who should apply.
 
 Contract details: {{content}}""",
-
         "analyze": """Analyze this government contract for a small business. Highlight:
 1) Key requirements
 2) Potential challenges
@@ -103,25 +94,23 @@ Contract details: {{content}}""",
 4) Red flags to watch for
 
 Contract: {{content}}""",
-
         "match": """Given this business profile: {{profile}}
 
 Rate how well this contract matches on a scale of 1-100 and explain why.
 
-Contract: {{content}}"""
+Contract: {{content}}""",
     },
     "sec": {
         "summarize": """Summarize this SEC filing in 2-3 sentences.
 Focus on: key financial changes, significant disclosures, and potential impact on investors.
 
 Filing details: {{content}}""",
-
         "analyze": """Analyze this SEC filing for retail investors. Highlight:
 1) Key financial metrics and changes
 2) Risk factors
 3) Management commentary insights
 4) Red flags to watch
 
-Filing: {{content}}"""
-    }
+Filing: {{content}}""",
+    },
 }

@@ -1,7 +1,6 @@
 import pytest
-from httpx import AsyncClient
-
 from app.models import User
+from httpx import AsyncClient
 
 
 @pytest.mark.asyncio
@@ -12,8 +11,8 @@ async def test_register_user(client: AsyncClient):
         json={
             "email": "newuser@example.com",
             "password": "securepassword123",
-            "name": "New User"
-        }
+            "name": "New User",
+        },
     )
     assert response.status_code == 200
     data = response.json()
@@ -29,9 +28,9 @@ async def test_register_duplicate_email(client: AsyncClient, test_user: User):
         "/api/auth/register",
         json={
             "email": test_user.email,
-            "password": "anotherpassword",
-            "name": "Another User"
-        }
+            "password": "anotherpassword123",
+            "name": "Another User",
+        },
     )
     assert response.status_code == 400
     assert "already registered" in response.json()["detail"]
@@ -42,26 +41,19 @@ async def test_login_success(client: AsyncClient, test_user: User):
     """Test successful login."""
     response = await client.post(
         "/api/auth/login",
-        params={
-            "email": test_user.email,
-            "password": "testpassword123"
-        }
+        json={"email": test_user.email, "password": "testpassword123"},
     )
     assert response.status_code == 200
     data = response.json()
     assert "access_token" in data
-    assert data["token_type"] == "bearer"
+    assert data["token_type"] == "bearer"  # noqa: S105
 
 
 @pytest.mark.asyncio
 async def test_login_wrong_password(client: AsyncClient, test_user: User):
     """Test login with wrong password fails."""
     response = await client.post(
-        "/api/auth/login",
-        params={
-            "email": test_user.email,
-            "password": "wrongpassword"
-        }
+        "/api/auth/login", json={"email": test_user.email, "password": "wrongpassword1"}
     )
     assert response.status_code == 401
 

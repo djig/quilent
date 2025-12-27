@@ -1,14 +1,16 @@
-from pydantic import BaseModel, Field
-from typing import Optional, List, Any, Dict
+import re
 from datetime import datetime
+from typing import Any, Optional
 from uuid import UUID
+
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 # Entity Schemas
 class EntityBase(BaseModel):
     title: str
     source_url: Optional[str] = None
-    data: Dict[str, Any]
+    data: dict[str, Any]
 
 
 class EntityCreate(EntityBase):
@@ -32,7 +34,7 @@ class EntityResponse(EntityBase):
 
 
 class EntityList(BaseModel):
-    data: List[EntityResponse]
+    data: list[EntityResponse]
     total: int
     limit: int
     offset: int
@@ -47,22 +49,22 @@ class AlertCondition(BaseModel):
 
 class AlertCreate(BaseModel):
     name: str
-    conditions: List[AlertCondition]
-    channels: List[str] = ["email"]
+    conditions: list[AlertCondition]
+    channels: list[str] = ["email"]
 
 
 class AlertUpdate(BaseModel):
     name: Optional[str] = None
-    conditions: Optional[List[AlertCondition]] = None
-    channels: Optional[List[str]] = None
+    conditions: Optional[list[AlertCondition]] = None
+    channels: Optional[list[str]] = None
     is_active: Optional[bool] = None
 
 
 class AlertResponse(BaseModel):
     id: UUID
     name: str
-    conditions: List[Dict[str, Any]]
-    channels: List[str]
+    conditions: list[dict[str, Any]]
+    channels: list[str]
     is_active: bool
     last_triggered_at: Optional[datetime]
     created_at: datetime
@@ -72,7 +74,7 @@ class AlertResponse(BaseModel):
 
 
 class AlertList(BaseModel):
-    data: List[AlertResponse]
+    data: list[AlertResponse]
     total: int
 
 
@@ -107,10 +109,28 @@ class AskResponse(BaseModel):
 
 
 # Auth Schemas
-class UserCreate(BaseModel):
-    email: str
+class LoginRequest(BaseModel):
+    email: EmailStr
     password: str
+
+
+class UserCreate(BaseModel):
+    email: EmailStr
+    password: str = Field(
+        min_length=8, description="Password must be at least 8 characters"
+    )
     name: Optional[str] = None
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        if not re.search(r"[A-Za-z]", v):
+            raise ValueError("Password must contain at least one letter")
+        if not re.search(r"\d", v):
+            raise ValueError("Password must contain at least one digit")
+        return v
 
 
 class UserResponse(BaseModel):
@@ -125,7 +145,7 @@ class UserResponse(BaseModel):
 
 class Token(BaseModel):
     access_token: str
-    token_type: str = "bearer"
+    token_type: str = "bearer"  # noqa: S105
 
 
 class TokenData(BaseModel):

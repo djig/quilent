@@ -1,12 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.database import get_db
-from app.models import Entity, User
-from app.schemas.api import SummarizeResponse, AskRequest, AskResponse
-from app.services.ai_service import generate_summary, answer_question, PROMPTS
 from app.middleware.auth import get_current_user
+from app.models import Entity, User
+from app.schemas.api import AskRequest, AskResponse, SummarizeResponse
+from app.services.ai_service import PROMPTS, answer_question, generate_summary
 
 router = APIRouter()
 
@@ -15,7 +16,7 @@ router = APIRouter()
 async def summarize_entity(
     entity_id: UUID,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user)
+    user: User = Depends(get_current_user),
 ):
     entity = await db.get(Entity, entity_id)
     if not entity:
@@ -26,7 +27,9 @@ async def summarize_entity(
         return SummarizeResponse(summary=entity.summary, cached=True)
 
     # Generate new summary
-    prompt = PROMPTS.get(entity.product_id, {}).get("summarize", "Summarize: {{content}}")
+    prompt = PROMPTS.get(entity.product_id, {}).get(
+        "summarize", "Summarize: {{content}}"
+    )
     content = str(entity.data)
 
     summary = await generate_summary(content, prompt)
@@ -43,7 +46,7 @@ async def ask_about_entity(
     entity_id: UUID,
     request: AskRequest,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user)
+    user: User = Depends(get_current_user),
 ):
     entity = await db.get(Entity, entity_id)
     if not entity:
@@ -62,7 +65,7 @@ async def ask_about_entity(
 async def analyze_entity(
     entity_id: UUID,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user)
+    user: User = Depends(get_current_user),
 ):
     """Deep analysis of an entity (premium feature)"""
     entity = await db.get(Entity, entity_id)

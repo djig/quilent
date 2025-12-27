@@ -1,21 +1,23 @@
-import pytest
 import asyncio
-from typing import AsyncGenerator, Generator
-from httpx import AsyncClient, ASGITransport
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import NullPool
+from collections.abc import AsyncGenerator, Generator
 
-from app.main import app
-from app.database import Base, get_db
+import pytest
 from app.config import settings
+from app.database import Base, get_db
+from app.main import app
 from app.middleware.auth import create_access_token, get_password_hash
 from app.models import User
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import NullPool
 
 # Use same database URL but ensure asyncpg driver
 TEST_DATABASE_URL = settings.DATABASE_URL
 if "postgresql://" in TEST_DATABASE_URL and "+asyncpg" not in TEST_DATABASE_URL:
-    TEST_DATABASE_URL = TEST_DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
+    TEST_DATABASE_URL = TEST_DATABASE_URL.replace(
+        "postgresql://", "postgresql+asyncpg://"
+    )
 
 # Create test engine
 test_engine = create_async_engine(
@@ -59,6 +61,7 @@ async def db_session(setup_database) -> AsyncGenerator[AsyncSession, None]:
 @pytest.fixture
 async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     """Get test client with overridden database."""
+
     async def override_get_db():
         yield db_session
 
@@ -77,7 +80,7 @@ async def test_user(db_session: AsyncSession) -> User:
     user = User(
         email="test@example.com",
         name="Test User",
-        hashed_password=get_password_hash("testpassword123")
+        hashed_password=get_password_hash("testpassword123"),
     )
     db_session.add(user)
     await db_session.commit()
