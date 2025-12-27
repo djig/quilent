@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: quilent
       POSTGRES_DB: quilent
     ports:
-      - "5432:5432"
+      - "5433:5432"  # Using 5433 on host to avoid conflicts
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -44,6 +44,35 @@ services:
     volumes:
       - ./services/api:/app
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  worker:
+    build: ./services/worker
+    environment:
+      - DATABASE_URL=postgresql://quilent:quilent@postgres:5432/quilent
+      - REDIS_URL=redis://redis:6379
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - SAM_GOV_API_KEY=${SAM_GOV_API_KEY:-}
+      - RESEND_API_KEY=${RESEND_API_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./services/worker:/app
+      - ./services/api:/app/api
+    command: celery -A app.celery_app worker --loglevel=info
+
+  celery-beat:
+    build: ./services/worker
+    environment:
+      - DATABASE_URL=postgresql://quilent:quilent@postgres:5432/quilent
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - worker
+    volumes:
+      - ./services/worker:/app
+    command: celery -A app.celery_app beat --loglevel=info
 
 volumes:
   postgres_data:
