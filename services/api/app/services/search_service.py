@@ -1,7 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_, and_
-from typing import List, Optional, Tuple
-from datetime import datetime
+from sqlalchemy import select, func, or_, cast, String, text
+from typing import List, Tuple
 
 from app.models import Entity
 from app.schemas.api import SearchFilters
@@ -26,34 +25,29 @@ class SearchService:
             Entity.product_id == product_id
         )
 
-        # Apply filters
+        # Apply keyword filter - search in title only for simplicity
         if filters.keywords:
-            keyword_filter = or_(
-                Entity.title.ilike(f"%{filters.keywords}%"),
-                Entity.data["description"].astext.ilike(f"%{filters.keywords}%")
-            )
+            keyword_filter = Entity.title.ilike(f"%{filters.keywords}%")
             query = query.where(keyword_filter)
             count_query = count_query.where(keyword_filter)
 
+        # Apply agency filter using JSON extraction
         if filters.agency:
-            agency_filter = Entity.data["agency"].astext.ilike(f"%{filters.agency}%")
+            agency_filter = cast(Entity.data["agency"], String).ilike(f"%{filters.agency}%")
             query = query.where(agency_filter)
             count_query = count_query.where(agency_filter)
 
+        # Apply NAICS filter using json_extract_path_text for proper string extraction
         if filters.naics_code:
-            naics_filter = Entity.data["naics_code"].astext == filters.naics_code
+            naics_filter = func.json_extract_path_text(Entity.data, 'naics_code') == filters.naics_code
             query = query.where(naics_filter)
             count_query = count_query.where(naics_filter)
 
+        # Apply set-aside filter
         if filters.set_aside:
-            set_aside_filter = Entity.data["set_aside"].astext.ilike(f"%{filters.set_aside}%")
+            set_aside_filter = cast(Entity.data["set_aside"], String).ilike(f"%{filters.set_aside}%")
             query = query.where(set_aside_filter)
             count_query = count_query.where(set_aside_filter)
-
-        if filters.deadline_after:
-            deadline_filter = Entity.data["deadline"].astext >= filters.deadline_after.isoformat()
-            query = query.where(deadline_filter)
-            count_query = count_query.where(deadline_filter)
 
         # Get total count
         total = await self.db.scalar(count_query) or 0
