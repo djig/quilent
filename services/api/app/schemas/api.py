@@ -150,3 +150,17 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     user_id: Optional[str] = None
+
+
+# OAuth Sync Schemas
+class OAuthSyncRequest(BaseModel):
+    email: EmailStr
+    name: Optional[str] = None
+    provider: str  # "google", "github", "credentials"
+    provider_account_id: Optional[str] = None
+
+
+class OAuthSyncResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"  # noqa: S105
+    user: UserResponse

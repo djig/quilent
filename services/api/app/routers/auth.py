@@ -14,7 +14,14 @@ from app.middleware.auth import (
 )
 from app.middleware.rate_limit import limiter
 from app.models import User
-from app.schemas.api import LoginRequest, Token, UserCreate, UserResponse
+from app.schemas.api import (
+    LoginRequest,
+    OAuthSyncRequest,
+    OAuthSyncResponse,
+    Token,
+    UserCreate,
+    UserResponse,
+)
 
 router = APIRouter()
 
@@ -75,3 +82,51 @@ async def login(
 @router.get("/me", response_model=UserResponse)
 async def get_me(current_user: User = Depends(get_current_user)):
     return current_user
+
+
+@router.post("/oauth-sync", response_model=OAuthSyncResponse)
+@limiter.limit("20/minute")
+async def oauth_sync(
+    request: Request, data: OAuthSyncRequest, db: AsyncSession = Depends(get_db)
+):
+    """
+    Sync OAuth user to our database.
+    Called by NextAuth after successful OAuth login.
+    Creates user if not exists, returns JWT for API calls.
+    """
+    # Find existing user by email
+    query = select(User).where(User.email == data.email)
+    result = await db.execute(query)
+    user = result.scalar_one_or_none()
+
+    if not user:
+        # Create new user (no password for OAuth users)
+        user = User(
+            email=data.email,
+            name=data.name,
+            hashed_password=None,
+        )
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+    elif data.name and not user.name:
+        # Update name if provided and user doesn't have one
+        user.name = data.name
+        await db.commit()
+        await db.refresh(user)
+
+    # Generate JWT token for API calls
+    access_token = create_access_token(
+        data={"sub": str(user.id)},
+        expires_delta=timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES),
+    )
+
+    return OAuthSyncResponse(
+        access_token=access_token,
+        user=UserResponse(
+            id=user.id,
+            email=user.email,
+            name=user.name,
+            created_at=user.created_at,
+        ),
+    )
