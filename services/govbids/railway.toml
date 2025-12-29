@@ -1,5 +1,6 @@
 [build]
 builder = "nixpacks"
+buildCommand = "pnpm install && pnpm run build"
 
 [deploy]
 startCommand = "pnpm run start"
@@ -8,3 +9,4 @@ healthcheckTimeout = 300
 
 [[services]]
 name = "govbids"
+rootDirectory = "services/govbids"

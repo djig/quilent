@@ -55,6 +55,7 @@ class Settings(BaseSettings):
         "http://localhost:3005",
         "https://govbids.quilent.ai",
         "https://quilent.ai",
+        "https://govbids-production.up.railway.app",
     ]
 
     @field_validator("CORS_ORIGINS", mode="before")

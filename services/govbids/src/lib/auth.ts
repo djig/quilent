@@ -79,50 +79,69 @@ async function loginWithCredentials(
   };
 }
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
-  providers: [
+const providers = [];
+
+// Only add Google provider if credentials are configured
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  providers.push(
     Google({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    }),
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    })
+  );
+}
+
+// Only add GitHub provider if credentials are configured
+if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) {
+  providers.push(
     GitHub({
-      clientId: process.env.GITHUB_CLIENT_ID!,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
-    }),
-    Credentials({
-      name: "credentials",
-      credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
-      },
-      async authorize(credentials) {
-        const parsed = loginSchema.safeParse(credentials);
-        if (!parsed.success) {
-          return null;
-        }
+      clientId: process.env.GITHUB_CLIENT_ID,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET,
+    })
+  );
+}
 
-        try {
-          const result = await loginWithCredentials(
-            parsed.data.email,
-            parsed.data.password
-          );
+// Always add Credentials provider
+providers.push(
+  Credentials({
+    name: "credentials",
+    credentials: {
+      email: { label: "Email", type: "email" },
+      password: { label: "Password", type: "password" },
+    },
+    async authorize(credentials) {
+      const parsed = loginSchema.safeParse(credentials);
+      if (!parsed.success) {
+        return null;
+      }
 
-          return {
-            id: result.user.id,
-            email: result.user.email,
-            name: result.user.name,
-            accessToken: result.accessToken,
-          };
-        } catch {
-          return null;
-        }
-      },
-    }),
-  ],
+      try {
+        const result = await loginWithCredentials(
+          parsed.data.email,
+          parsed.data.password
+        );
+
+        return {
+          id: result.user.id,
+          email: result.user.email,
+          name: result.user.name,
+          accessToken: result.accessToken,
+        };
+      } catch {
+        return null;
+      }
+    },
+  })
+);
+
+export const { handlers, signIn, signOut, auth } = NextAuth({
+  providers,
+  trustHost: true,
   pages: {
     signIn: "/login",
     error: "/login",
   },
+  debug: process.env.NODE_ENV === "development",
   callbacks: {
     async signIn({ user, account }) {
       // For OAuth providers, sync user to backend
