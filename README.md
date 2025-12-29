@@ -39,47 +39,87 @@ quilent/
 
 ### Prerequisites
 
-- Python 3.12+
-- Node.js 20+
+- Node.js 22+ (for frontend)
 - Docker & Docker Compose
 - pnpm
 
-### Local Development
+> **Note:** No Python installation needed! Backend runs entirely in Docker.
 
-1. **Start infrastructure:**
+### Local Development (Recommended)
+
+Use the dev start script for the easiest setup:
+
+```bash
+./scripts/dev-start.sh
+```
+
+This script will:
+- Check if required ports are available (5433, 6379, 8000, 3000)
+- Offer to stop conflicting services if ports are in use
+- Start Docker containers (PostgreSQL, Redis, API)
+- Run database migrations automatically
+
+Then start the frontend in a separate terminal:
+```bash
+cd services/govbids
+pnpm install
+pnpm dev
+```
+
+### Manual Setup
+
+If you prefer manual control:
+
+1. **Start backend services (Docker):**
    ```bash
-   docker compose up -d postgres redis
+   docker-compose up -d postgres redis api
    ```
 
-2. **Start API:**
+2. **Run database migrations:**
    ```bash
-   cd services/api
-   python -m venv venv
-   source venv/bin/activate  # or `venv\Scripts\activate` on Windows
-   pip install -r requirements.txt
-   cp .env.example .env
-   # Edit .env with your API keys
-   uvicorn app.main:app --reload
+   docker-compose exec api alembic upgrade head
    ```
 
-3. **Start Frontend (after setup):**
+3. **Start frontend (local):**
    ```bash
    cd services/govbids
    pnpm install
    pnpm dev
    ```
 
-### Using Docker Compose
+### Services & Ports
+
+| Service | Port | URL |
+|---------|------|-----|
+| PostgreSQL | 5433 | - |
+| Redis | 6379 | - |
+| API | 8000 | http://localhost:8000 |
+| API Docs | 8000 | http://localhost:8000/docs |
+| Frontend | 3000 | http://localhost:3000 |
+
+### Common Commands
 
 ```bash
-# Start all services
-docker compose up -d
+# Start all backend services
+docker-compose up -d postgres redis api
 
-# View logs
-docker compose logs -f api
+# View API logs
+docker-compose logs -f api
+
+# Restart API after code changes
+docker-compose restart api
 
 # Stop all services
-docker compose down
+docker-compose down
+
+# Full reset (removes database data)
+docker-compose down -v
+
+# Run database migrations
+docker-compose exec api alembic upgrade head
+
+# Access database shell
+docker-compose exec postgres psql -U quilent
 ```
 
 ## API Documentation
@@ -90,7 +130,32 @@ Once the API is running, visit:
 
 ## Environment Variables
 
+### Backend (services/api)
 See `services/api/.env.example` for required environment variables.
+
+### Frontend (services/govbids)
+Create `services/govbids/.env.local`:
+
+```env
+# NextAuth Configuration
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your-secret-key-here
+AUTH_TRUST_HOST=true
+
+# API Configuration
+NEXT_PUBLIC_API_URL=http://localhost:8000
+
+# OAuth Providers (optional for local dev)
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
+```
+
+Generate NEXTAUTH_SECRET:
+```bash
+openssl rand -base64 32
+```
 
 ## License
 

@@ -42,3 +42,6 @@ coverage/
 # Build
 *.egg
 *.whl
+
+# Google OAuth
+services/govbids/client_secret_539178635640-c9c3085kvs46m79du1dgn5un70t341n8.apps.googleusercontent.com.json
